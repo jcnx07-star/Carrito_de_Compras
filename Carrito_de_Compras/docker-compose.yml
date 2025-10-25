@@ -1,0 +1,57 @@
+version: "3.9"
+networks:
+  tienda_net:
+
+volumes:
+  db_data:
+  backend_data:
+
+services:
+  db:
+    image: postgres:16
+    container_name: tienda_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tienda_db
+      POSTGRES_USER: tienda_user
+      POSTGRES_PASSWORD: tienda_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tienda_user -d tienda_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tienda_net
+
+  backend:
+    build: ./backend
+    container_name: tienda_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: tienda_db
+      DB_USER: tienda_user
+      DB_PASS: tienda_pass
+    ports:
+      - "8085:8085"
+    volumes:
+      - backend_data:/app/data
+    networks:
+      - tienda_net
+
+  frontend:
+    build: ./frontend
+    container_name: tienda_frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - tienda_net
